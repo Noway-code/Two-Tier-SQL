@@ -2,6 +2,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Project3GUI extends JFrame implements ActionListener {
     // Connection Panel components
@@ -71,8 +73,9 @@ public class Project3GUI extends JFrame implements ActionListener {
         resultPanel.setBorder(BorderFactory.createTitledBorder("SQL Result"));
         resultArea = new JTextArea(10, 50);
         resultArea.setEditable(false);
-        resultArea.setLineWrap(true);
-        resultArea.setWrapStyleWord(true);
+        // Set a monospaced font for proper alignment of table output.
+        resultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        resultArea.setLineWrap(false);
         resultPanel.add(new JScrollPane(resultArea), BorderLayout.CENTER);
 
         add(resultPanel, BorderLayout.SOUTH);
@@ -86,11 +89,7 @@ public class Project3GUI extends JFrame implements ActionListener {
         switch (command) {
             case "Connect" -> connectToDatabase();
             case "Disconnect" -> disconnectFromDatabase();
-            case "Execute" -> {
-                // Placeholder for executing the SQL command using JDBC
-                String sql = sqlCommandArea.getText();
-                resultArea.setText("Executing SQL command:\n" + sql);
-            }
+            case "Execute" -> executeSQLCommand();
             case "Clear" -> {
                 sqlCommandArea.setText("");
                 resultArea.setText("");
@@ -98,6 +97,7 @@ public class Project3GUI extends JFrame implements ActionListener {
         }
     }
     public Connection c;
+
     public void connectToDatabase() {
         // Establish JDBC Connection
         String username = usernameField.getText();
@@ -109,21 +109,14 @@ public class Project3GUI extends JFrame implements ActionListener {
                 resultArea.append("\nAlready connected.");
                 return;
             }
-             c = DriverManager.getConnection(
-                    url, username, password);
-
+            c = DriverManager.getConnection(url, username, password);
             resultArea.setText("Connected as " + username);
             System.out.println("Connected as " + username + " to " + url + "\n");
-
-        }
-        catch (ClassNotFoundException e) {
-            System.err.println("JDBC Driver not found: "
-                    + e.getMessage());
+        } catch (ClassNotFoundException e) {
+            System.err.println("JDBC Driver not found: " + e.getMessage());
             resultArea.setText("JDBC Driver not found.");
-        }
-        catch (SQLException e) {
-            System.err.println("SQL Error: "
-                    + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("SQL Error: " + e.getMessage());
             resultArea.setText("SQL Error: " + e.getMessage());
         }
     }
@@ -142,6 +135,93 @@ public class Project3GUI extends JFrame implements ActionListener {
         }
     }
 
+    public void executeSQLCommand() {
+        String sql = sqlCommandArea.getText().trim();
+        if (sql.isEmpty()) {
+            resultArea.setText("Please enter an SQL command.");
+            return;
+        }
+        if (c == null) {
+            resultArea.setText("No active connection. Please connect to the database first.");
+            return;
+        }
+        try (Statement stmt = c.createStatement()) {
+            // Check if the SQL starts with "select" (case-insensitive)
+            if (sql.toLowerCase().startsWith("select")) {
+                try (ResultSet rs = stmt.executeQuery(sql)) {
+                    // Instead of a popup, display results in the resultArea as a table.
+                    String tableOutput = resultSetToTableString(rs);
+                    resultArea.setText(tableOutput);
+                }
+            } else {
+                int updateCount = stmt.executeUpdate(sql);
+                resultArea.setText("Command executed successfully. Rows affected: " + updateCount);
+            }
+        } catch (SQLException ex) {
+            resultArea.setText("SQL Error: " + ex.getMessage());
+            System.err.println("SQL Error: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Converts a ResultSet into a formatted table string.
+     * This method calculates column widths based on header and cell lengths.
+     */
+    public String resultSetToTableString(ResultSet rs) throws SQLException {
+        ResultSetMetaData meta = rs.getMetaData();
+        int colCount = meta.getColumnCount();
+        List<String[]> rows = new ArrayList<>();
+        String[] headers = new String[colCount];
+        int[] maxWidths = new int[colCount];
+
+        // Read headers and initialize maxWidths.
+        for (int i = 0; i < colCount; i++) {
+            headers[i] = meta.getColumnLabel(i + 1);
+            maxWidths[i] = headers[i].length();
+        }
+        rows.add(headers);
+
+        // Read data rows.
+        while (rs.next()) {
+            String[] row = new String[colCount];
+            for (int i = 0; i < colCount; i++) {
+                Object obj = rs.getObject(i + 1);
+                row[i] = (obj == null ? "NULL" : obj.toString());
+                if (row[i].length() > maxWidths[i]) {
+                    maxWidths[i] = row[i].length();
+                }
+            }
+            rows.add(row);
+        }
+
+        // Build the table string.
+        StringBuilder sb = new StringBuilder();
+        // Header row
+        for (int i = 0; i < colCount; i++) {
+            sb.append(String.format("%-" + maxWidths[i] + "s", rows.get(0)[i]));
+            if (i < colCount - 1) sb.append(" | ");
+        }
+        sb.append("\n");
+
+        // Separator line
+        for (int i = 0; i < colCount; i++) {
+            sb.append("-".repeat(maxWidths[i]));
+            if (i < colCount - 1) sb.append("-+-");
+        }
+        sb.append("\n");
+
+        // Data rows
+        for (int r = 1; r < rows.size(); r++) {
+            String[] row = rows.get(r);
+            for (int i = 0; i < colCount; i++) {
+                sb.append(String.format("%-" + maxWidths[i] + "s", row[i]));
+                if (i < colCount - 1) sb.append(" | ");
+            }
+            sb.append("\n");
+        }
+
+        return sb.toString();
+    }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Project3GUI::new);
