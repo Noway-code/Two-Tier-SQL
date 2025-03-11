@@ -328,9 +328,12 @@ public class Project3GUI extends JFrame implements ActionListener {
             } else {
                 int updateCount = stmt.executeUpdate(sql);
                 String message = "Command executed successfully. Rows affected: " + updateCount;
-                // If this is an INSERT command, pop up a dialog with the success status.
-                if (sql.toLowerCase().startsWith("insert")) {
+                // If this is an INSERT or UPDATE command, pop up a dialog with the success status.
+                String lowerSql = sql.toLowerCase();
+                if (lowerSql.startsWith("insert")) {
                     JOptionPane.showMessageDialog(this, message, "Insert Success", JOptionPane.INFORMATION_MESSAGE);
+                } else if (lowerSql.startsWith("update")) {
+                    JOptionPane.showMessageDialog(this, message, "Update Success", JOptionPane.INFORMATION_MESSAGE);
                 }
                 resultArea.setText(message);
             }
