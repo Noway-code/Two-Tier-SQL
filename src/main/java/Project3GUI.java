@@ -330,7 +330,10 @@ public class Project3GUI extends JFrame implements ActionListener {
                 resultArea.setText("Command executed successfully. Rows affected: " + updateCount);
             }
         } catch (SQLException ex) {
-            resultArea.setText("SQL Error: " + ex.getMessage());
+            String errMsg = "SQL Error: " + ex.getMessage();
+            resultArea.setText(errMsg);
+            // Show a dialog with the error message
+            JOptionPane.showMessageDialog(this, errMsg, "SQL Error", JOptionPane.ERROR_MESSAGE);
             System.err.println("SQL Error: " + ex.getMessage());
         }
     }
