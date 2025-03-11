@@ -83,49 +83,65 @@ public class Project3GUI extends JFrame implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent e) {
         String command = e.getActionCommand();
-        if (command.equals("Connect")) {
-            connectToDatabase();
-
-        } else if (command.equals("Disconnect")) {
-            // Placeholder for disconnect logic
-            resultArea.setText("Disconnected from database.");
-        } else if (command.equals("Execute")) {
-            // Placeholder for executing the SQL command using JDBC
-            String sql = sqlCommandArea.getText();
-            resultArea.setText("Executing SQL command:\n" + sql);
-        } else if (command.equals("Clear")) {
-            sqlCommandArea.setText("");
-            resultArea.setText("");
+        switch (command) {
+            case "Connect" -> connectToDatabase();
+            case "Disconnect" -> disconnectFromDatabase();
+            case "Execute" -> {
+                // Placeholder for executing the SQL command using JDBC
+                String sql = sqlCommandArea.getText();
+                resultArea.setText("Executing SQL command:\n" + sql);
+            }
+            case "Clear" -> {
+                sqlCommandArea.setText("");
+                resultArea.setText("");
+            }
         }
     }
-
+    public Connection c;
     public void connectToDatabase() {
         // Establish JDBC Connection
         String username = usernameField.getText();
         String password = new String(passwordField.getPassword());
+
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-
-            Connection c = DriverManager.getConnection(
+            if (c != null && !c.isClosed()) {
+                resultArea.append("\nAlready connected.");
+                return;
+            }
+             c = DriverManager.getConnection(
                     url, username, password);
 
             resultArea.setText("Connected as " + username);
             System.out.println("Connected as " + username + " to " + url + "\n");
 
-            // Close the connection
-            c.close();
-            System.out.println("Disconnected from " + url);
-
         }
         catch (ClassNotFoundException e) {
             System.err.println("JDBC Driver not found: "
                     + e.getMessage());
+            resultArea.setText("JDBC Driver not found.");
         }
         catch (SQLException e) {
             System.err.println("SQL Error: "
                     + e.getMessage());
+            resultArea.setText("SQL Error: " + e.getMessage());
         }
     }
+
+    public void disconnectFromDatabase() {
+        try {
+            if (c != null && !c.isClosed()) {
+                c.close();
+                resultArea.setText("Disconnected from database.");
+                c = null;
+            } else {
+                resultArea.setText("No active connection to disconnect.");
+            }
+        } catch (SQLException e) {
+            System.err.println("SQL Error: " + e.getMessage());
+        }
+    }
+
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Project3GUI::new);
