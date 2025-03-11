@@ -1,9 +1,13 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 public class Project3GUI extends JFrame implements ActionListener {
     // Connection Panel components
@@ -11,6 +15,8 @@ public class Project3GUI extends JFrame implements ActionListener {
     private final JPasswordField passwordField;
     private final JButton connectButton;
     private final JButton disconnectButton;
+    private final JComboBox<String> dbPropertiesCombo;   // Dropdown for DB properties
+    private final JComboBox<String> userPropertiesCombo; // Dropdown for user credentials
 
     // Command Panel components
     private final JTextArea sqlCommandArea;
@@ -21,32 +27,75 @@ public class Project3GUI extends JFrame implements ActionListener {
     private final JTextArea resultArea;
     private final JButton exitButton; // Exit button
 
-    String url = "jdbc:mysql://localhost:3306/project3";
+    // Default values in case properties files do not override them
+    String defaultUrl = "jdbc:mysql://localhost:3306/project3";
+
+    // JDBC connection
+    public Connection c;
 
     public Project3GUI() {
         setTitle("Project 3 - Client Application");
         setSize(1000, 750);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+        // Use a BorderLayout for the frame.
         setLayout(new BorderLayout());
 
-        // Build Connection Panel
-        JPanel connectionPanel = new JPanel(new FlowLayout());
+        // Build Connection Panel using GridBagLayout (3 rows: Properties, Credentials, Connect)
+        JPanel connectionPanel = new JPanel(new GridBagLayout());
         connectionPanel.setBorder(BorderFactory.createTitledBorder("Database Connection"));
-        connectionPanel.add(new JLabel("Username:"));
-        usernameField = new JTextField(10);
-        connectionPanel.add(usernameField);
-        connectionPanel.add(new JLabel("Password:"));
-        passwordField = new JPasswordField(10);
-        connectionPanel.add(passwordField);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5,5,5,5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
 
+        // Row 1: Properties dropdowns
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        connectionPanel.add(new JLabel("DB Properties:"), gbc);
+
+        gbc.gridx = 1;
+        dbPropertiesCombo = new JComboBox<>();
+        populateDBPropertiesDropdown();
+        connectionPanel.add(dbPropertiesCombo, gbc);
+
+        gbc.gridx = 2;
+        connectionPanel.add(new JLabel("User Properties:"), gbc);
+
+        gbc.gridx = 3;
+        userPropertiesCombo = new JComboBox<>();
+        populateUserPropertiesDropdown();
+        connectionPanel.add(userPropertiesCombo, gbc);
+
+        // Row 2: Credentials
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        connectionPanel.add(new JLabel("Username:"), gbc);
+
+        gbc.gridx = 1;
+        usernameField = new JTextField(10);
+        connectionPanel.add(usernameField, gbc);
+
+        gbc.gridx = 2;
+        connectionPanel.add(new JLabel("Password:"), gbc);
+
+        gbc.gridx = 3;
+        passwordField = new JPasswordField(10);
+        connectionPanel.add(passwordField, gbc);
+
+        // Row 3: Connect / Disconnect buttons
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.gridwidth = 2;
         connectButton = new JButton("Connect");
         connectButton.addActionListener(this);
-        connectionPanel.add(connectButton);
+        connectionPanel.add(connectButton, gbc);
 
+        gbc.gridx = 2;
+        gbc.gridwidth = 2;
         disconnectButton = new JButton("Disconnect");
         disconnectButton.addActionListener(this);
-        connectionPanel.add(disconnectButton);
+        connectionPanel.add(disconnectButton, gbc);
 
         add(connectionPanel, BorderLayout.NORTH);
 
@@ -69,7 +118,7 @@ public class Project3GUI extends JFrame implements ActionListener {
 
         add(commandPanel, BorderLayout.CENTER);
 
-        // Build Result Panel
+        // Build Result Panel with Exit Button (placed in the SOUTH)
         JPanel resultPanel = new JPanel(new BorderLayout());
         resultPanel.setBorder(BorderFactory.createTitledBorder("SQL Result"));
         resultArea = new JTextArea(10, 50);
@@ -78,13 +127,10 @@ public class Project3GUI extends JFrame implements ActionListener {
         resultArea.setLineWrap(false);
         resultPanel.add(new JScrollPane(resultArea), BorderLayout.CENTER);
 
-        // Create a bottom panel to hold the result panel and the Exit button
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.add(resultPanel, BorderLayout.CENTER);
-
         exitButton = new JButton("Exit");
         exitButton.addActionListener(this);
-        // Add some padding so the exit button is not flush against the border
         JPanel exitPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         exitPanel.add(exitButton);
         bottomPanel.add(exitPanel, BorderLayout.SOUTH);
@@ -92,6 +138,54 @@ public class Project3GUI extends JFrame implements ActionListener {
         add(bottomPanel, BorderLayout.SOUTH);
 
         setVisible(true);
+    }
+
+    /**
+     * Populates the database properties dropdown from the "config/db" folder.
+     */
+    private void populateDBPropertiesDropdown() {
+        File dbConfigDir = new File("config/db");
+        if (dbConfigDir.exists() && dbConfigDir.isDirectory()) {
+            File[] files = dbConfigDir.listFiles((dir, name) -> name.endsWith(".properties"));
+            if (files != null && files.length > 0) {
+                for (File file : files) {
+                    dbPropertiesCombo.addItem(file.getName());
+                }
+            } else {
+                dbPropertiesCombo.addItem("project3.properties");
+                dbPropertiesCombo.addItem("bikedb.properties");
+            }
+        } else {
+            dbPropertiesCombo.addItem("project3.properties");
+            dbPropertiesCombo.addItem("bikedb.properties");
+        }
+    }
+
+    /**
+     * Populates the user properties dropdown from the "config/user" folder.
+     */
+    private void populateUserPropertiesDropdown() {
+        File userConfigDir = new File("config/user");
+        if (userConfigDir.exists() && userConfigDir.isDirectory()) {
+            File[] files = userConfigDir.listFiles((dir, name) -> name.endsWith(".properties"));
+            if (files != null && files.length > 0) {
+                for (File file : files) {
+                    userPropertiesCombo.addItem(file.getName());
+                }
+            } else {
+                userPropertiesCombo.addItem("root.properties");
+                userPropertiesCombo.addItem("client1.properties");
+                userPropertiesCombo.addItem("client2.properties");
+                userPropertiesCombo.addItem("project3app.properties");
+                userPropertiesCombo.addItem("theaccountant.properties");
+            }
+        } else {
+            userPropertiesCombo.addItem("root.properties");
+            userPropertiesCombo.addItem("client1.properties");
+            userPropertiesCombo.addItem("client2.properties");
+            userPropertiesCombo.addItem("project3app.properties");
+            userPropertiesCombo.addItem("theaccountant.properties");
+        }
     }
 
     @Override
@@ -109,21 +203,72 @@ public class Project3GUI extends JFrame implements ActionListener {
         }
     }
 
-    public Connection c;
-
+    /**
+     * Connects to the database using settings from the selected DB properties file and user properties file.
+     * Verifies that the entered username and password match the user properties.
+     */
     public void connectToDatabase() {
-        // Establish JDBC Connection
-        String username = usernameField.getText();
-        String password = new String(passwordField.getPassword());
+        // Load DB properties from the selected file in config/db
+        String selectedDBProperties = (String) dbPropertiesCombo.getSelectedItem();
+        Properties dbProps = new Properties();
+        File dbPropFile = new File("config/db", selectedDBProperties);
+        if (dbPropFile.exists()) {
+            try (FileInputStream fis = new FileInputStream(dbPropFile)) {
+                dbProps.load(fis);
+            } catch (IOException ex) {
+                resultArea.setText("Failed to load DB properties file: " + selectedDBProperties);
+                System.err.println("DB Properties load error: " + ex.getMessage());
+                return;
+            }
+        } else {
+            resultArea.setText("DB properties file not found: " + selectedDBProperties);
+            return;
+        }
+
+        // Load User properties from the selected file in config/user
+        String selectedUserProperties = (String) userPropertiesCombo.getSelectedItem();
+        Properties userProps = new Properties();
+        File userPropFile = new File("config/user", selectedUserProperties);
+        if (userPropFile.exists()) {
+            try (FileInputStream fis = new FileInputStream(userPropFile)) {
+                userProps.load(fis);
+            } catch (IOException ex) {
+                resultArea.setText("Failed to load user properties file: " + selectedUserProperties);
+                System.err.println("User Properties load error: " + ex.getMessage());
+                return;
+            }
+        } else {
+            resultArea.setText("User properties file not found: " + selectedUserProperties);
+            return;
+        }
+
+        // Use properties to override defaults
+        String driver = dbProps.getProperty("driver", "com.mysql.cj.jdbc.Driver");
+        String urlFromProps = dbProps.getProperty("url", defaultUrl);
+
+        // Use text field values if provided; otherwise, default to properties
+        String guiUsername = usernameField.getText().trim();
+        String guiPassword = new String(passwordField.getPassword()).trim();
+        String propUsername = userProps.getProperty("username", "");
+        String propPassword = userProps.getProperty("password", "");
+
+        // Verify credentials: the GUI input must match the properties file exactly.
+        if (!guiUsername.equals(propUsername) || !guiPassword.equals(propPassword)) {
+            resultArea.setText("Credential mismatch.\nEntered credentials do not match those in " + selectedUserProperties);
+            return;
+        }
+
         try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
+            Class.forName(driver);
             if (c != null && !c.isClosed()) {
                 resultArea.append("\nAlready connected.");
                 return;
             }
-            c = DriverManager.getConnection(url, username, password);
-            resultArea.setText("Connected as " + username);
-            System.out.println("Connected as " + username + " to " + url + "\n");
+            c = DriverManager.getConnection(urlFromProps, propUsername, propPassword);
+            resultArea.setText("Connected as " + propUsername
+                    + "\nUsing DB properties file: " + selectedDBProperties
+                    + "\nUsing User properties file: " + selectedUserProperties);
+            System.out.println("Connected as " + propUsername + " to " + urlFromProps + "\n");
         } catch (ClassNotFoundException e) {
             System.err.println("JDBC Driver not found: " + e.getMessage());
             resultArea.setText("JDBC Driver not found.");
@@ -144,6 +289,7 @@ public class Project3GUI extends JFrame implements ActionListener {
             }
         } catch (SQLException e) {
             System.err.println("SQL Error: " + e.getMessage());
+            resultArea.setText("SQL Error: " + e.getMessage());
         }
     }
 
