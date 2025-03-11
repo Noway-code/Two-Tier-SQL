@@ -27,6 +27,9 @@ public class Project3GUI extends JFrame implements ActionListener {
     private final JTextArea resultArea;
     private final JButton exitButton; // Exit button
 
+    // Panel for connection info (above results)
+    private final JLabel connectionInfoLabel;
+
     // Default values in case properties files do not override them
     String defaultUrl = "jdbc:mysql://localhost:3306/project3";
 
@@ -45,7 +48,7 @@ public class Project3GUI extends JFrame implements ActionListener {
         JPanel connectionPanel = new JPanel(new GridBagLayout());
         connectionPanel.setBorder(BorderFactory.createTitledBorder("Database Connection"));
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5,5,5,5);
+        gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
 
@@ -99,7 +102,7 @@ public class Project3GUI extends JFrame implements ActionListener {
 
         add(connectionPanel, BorderLayout.NORTH);
 
-        // Build Command Panel
+        // Build Command Panel (in the center)
         JPanel commandPanel = new JPanel(new BorderLayout());
         commandPanel.setBorder(BorderFactory.createTitledBorder("SQL Command"));
         sqlCommandArea = new JTextArea(5, 50);
@@ -118,7 +121,7 @@ public class Project3GUI extends JFrame implements ActionListener {
 
         add(commandPanel, BorderLayout.CENTER);
 
-        // Build Result Panel with Exit Button (placed in the SOUTH)
+        // Build Result Panel with Exit Button (in the south)
         JPanel resultPanel = new JPanel(new BorderLayout());
         resultPanel.setBorder(BorderFactory.createTitledBorder("SQL Result"));
         resultArea = new JTextArea(10, 50);
@@ -127,8 +130,17 @@ public class Project3GUI extends JFrame implements ActionListener {
         resultArea.setLineWrap(false);
         resultPanel.add(new JScrollPane(resultArea), BorderLayout.CENTER);
 
+        // Create a panel for connection info (above results)
+        JPanel connectionInfoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        connectionInfoLabel = new JLabel("Not connected");
+        connectionInfoPanel.add(new JLabel("Current Connection URL: "));
+        connectionInfoPanel.add(connectionInfoLabel);
+
+        // Bottom panel to hold connection info, result panel, and exit button.
         JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.add(connectionInfoPanel, BorderLayout.NORTH);
         bottomPanel.add(resultPanel, BorderLayout.CENTER);
+
         exitButton = new JButton("Exit");
         exitButton.addActionListener(this);
         JPanel exitPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -268,6 +280,8 @@ public class Project3GUI extends JFrame implements ActionListener {
             resultArea.setText("Connected as " + propUsername
                     + "\nUsing DB properties file: " + selectedDBProperties
                     + "\nUsing User properties file: " + selectedUserProperties);
+            // Update connection info label with current URL.
+            connectionInfoLabel.setText(urlFromProps);
             System.out.println("Connected as " + propUsername + " to " + urlFromProps + "\n");
         } catch (ClassNotFoundException e) {
             System.err.println("JDBC Driver not found: " + e.getMessage());
@@ -284,6 +298,7 @@ public class Project3GUI extends JFrame implements ActionListener {
                 c.close();
                 resultArea.setText("Disconnected from database.");
                 c = null;
+                connectionInfoLabel.setText("Not connected");
             } else {
                 resultArea.setText("No active connection to disconnect.");
             }
