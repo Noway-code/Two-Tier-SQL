@@ -19,6 +19,7 @@ public class Project3GUI extends JFrame implements ActionListener {
 
     // Result Panel components
     private final JTextArea resultArea;
+    private final JButton exitButton; // Exit button
 
     String url = "jdbc:mysql://localhost:3306/project3";
 
@@ -73,12 +74,22 @@ public class Project3GUI extends JFrame implements ActionListener {
         resultPanel.setBorder(BorderFactory.createTitledBorder("SQL Result"));
         resultArea = new JTextArea(10, 50);
         resultArea.setEditable(false);
-        // Set a monospaced font for proper alignment of table output.
         resultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         resultArea.setLineWrap(false);
         resultPanel.add(new JScrollPane(resultArea), BorderLayout.CENTER);
 
-        add(resultPanel, BorderLayout.SOUTH);
+        // Create a bottom panel to hold the result panel and the Exit button
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.add(resultPanel, BorderLayout.CENTER);
+
+        exitButton = new JButton("Exit");
+        exitButton.addActionListener(this);
+        // Add some padding so the exit button is not flush against the border
+        JPanel exitPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        exitPanel.add(exitButton);
+        bottomPanel.add(exitPanel, BorderLayout.SOUTH);
+
+        add(bottomPanel, BorderLayout.SOUTH);
 
         setVisible(true);
     }
@@ -94,15 +105,16 @@ public class Project3GUI extends JFrame implements ActionListener {
                 sqlCommandArea.setText("");
                 resultArea.setText("");
             }
+            case "Exit" -> System.exit(0);
         }
     }
+
     public Connection c;
 
     public void connectToDatabase() {
         // Establish JDBC Connection
         String username = usernameField.getText();
         String password = new String(passwordField.getPassword());
-
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             if (c != null && !c.isClosed()) {
@@ -149,7 +161,6 @@ public class Project3GUI extends JFrame implements ActionListener {
             // Check if the SQL starts with "select" (case-insensitive)
             if (sql.toLowerCase().startsWith("select")) {
                 try (ResultSet rs = stmt.executeQuery(sql)) {
-                    // Instead of a popup, display results in the resultArea as a table.
                     String tableOutput = resultSetToTableString(rs);
                     resultArea.setText(tableOutput);
                 }
@@ -165,7 +176,7 @@ public class Project3GUI extends JFrame implements ActionListener {
 
     /**
      * Converts a ResultSet into a formatted table string.
-     * This method calculates column widths based on header and cell lengths.
+     * Calculates column widths based on header and cell lengths.
      */
     public String resultSetToTableString(ResultSet rs) throws SQLException {
         ResultSetMetaData meta = rs.getMetaData();
