@@ -1,12 +1,11 @@
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 
 public class Project3GUI extends JFrame implements ActionListener {
@@ -23,8 +22,9 @@ public class Project3GUI extends JFrame implements ActionListener {
     private final JButton executeButton;
     private final JButton clearButton;
 
-    // Result Panel components
-    private final JTextArea resultArea;
+    // Results Panel components (non-editable JTable)
+    private final JTable resultTable;
+    private final JScrollPane resultScrollPane;
     private final JButton exitButton; // Exit button
 
     // Panel for connection info (above results)
@@ -41,7 +41,6 @@ public class Project3GUI extends JFrame implements ActionListener {
         setSize(1000, 750);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        // Use a BorderLayout for the frame.
         setLayout(new BorderLayout());
 
         // Build Connection Panel using GridBagLayout (3 rows: Properties, Credentials, Connect)
@@ -121,14 +120,19 @@ public class Project3GUI extends JFrame implements ActionListener {
 
         add(commandPanel, BorderLayout.CENTER);
 
-        // Build Result Panel with Exit Button (in the south)
-        JPanel resultPanel = new JPanel(new BorderLayout());
-        resultPanel.setBorder(BorderFactory.createTitledBorder("SQL Result"));
-        resultArea = new JTextArea(10, 50);
-        resultArea.setEditable(false);
-        resultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        resultArea.setLineWrap(false);
-        resultPanel.add(new JScrollPane(resultArea), BorderLayout.CENTER);
+        // Build Results Panel with Exit Button (in the south)
+        JPanel resultsContainer = new JPanel(new BorderLayout());
+        resultsContainer.setBorder(BorderFactory.createTitledBorder("SQL Result"));
+        // Create a non-editable JTable by overriding isCellEditable
+        resultTable = new JTable(new DefaultTableModel()) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        resultTable.setFillsViewportHeight(true);
+        resultScrollPane = new JScrollPane(resultTable);
+        resultsContainer.add(resultScrollPane, BorderLayout.CENTER);
 
         // Create a panel for connection info (above results)
         JPanel connectionInfoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -136,10 +140,10 @@ public class Project3GUI extends JFrame implements ActionListener {
         connectionInfoPanel.add(new JLabel("Current Connection URL: "));
         connectionInfoPanel.add(connectionInfoLabel);
 
-        // Bottom panel to hold connection info, result panel, and exit button.
+        // Bottom panel to hold connection info, results panel, and exit button.
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.add(connectionInfoPanel, BorderLayout.NORTH);
-        bottomPanel.add(resultPanel, BorderLayout.CENTER);
+        bottomPanel.add(resultsContainer, BorderLayout.CENTER);
 
         exitButton = new JButton("Exit");
         exitButton.addActionListener(this);
@@ -218,7 +222,8 @@ public class Project3GUI extends JFrame implements ActionListener {
             case "Execute" -> executeSQLCommand();
             case "Clear" -> {
                 sqlCommandArea.setText("");
-                resultArea.setText("");
+                // For a SELECT query, clear the table model.
+                resultTable.setModel(new DefaultTableModel());
             }
             case "Exit" -> System.exit(0);
         }
@@ -315,13 +320,12 @@ public class Project3GUI extends JFrame implements ActionListener {
             JOptionPane.showMessageDialog(this, "No active connection. Please connect to the database first.", "Info", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
-        // Use a PreparedStatement for all commands.
         try {
             if (sql.toLowerCase().startsWith("select")) {
                 try (PreparedStatement pstmt = c.prepareStatement(sql);
                      ResultSet rs = pstmt.executeQuery()) {
-                    String tableOutput = resultSetToTableString(rs);
-                    resultArea.setText(tableOutput);
+                    DefaultTableModel model = buildTableModel(rs);
+                    resultTable.setModel(model);
                 }
             } else {
                 try (PreparedStatement pstmt = c.prepareStatement(sql)) {
@@ -335,8 +339,7 @@ public class Project3GUI extends JFrame implements ActionListener {
                     } else {
                         JOptionPane.showMessageDialog(this, message, "Success", JOptionPane.INFORMATION_MESSAGE);
                     }
-                    // Clear the result area since it's for SELECT output only.
-                    resultArea.setText("");
+                    resultTable.setModel(new DefaultTableModel());
                 }
             }
         } catch (SQLException ex) {
@@ -346,63 +349,30 @@ public class Project3GUI extends JFrame implements ActionListener {
     }
 
     /**
-     * Converts a ResultSet into a formatted table string.
-     * Calculates column widths based on header and cell lengths.
+     * Builds a DefaultTableModel from the given ResultSet.
      */
-    public String resultSetToTableString(ResultSet rs) throws SQLException {
+    private DefaultTableModel buildTableModel(ResultSet rs) throws SQLException {
         ResultSetMetaData meta = rs.getMetaData();
         int colCount = meta.getColumnCount();
-        List<String[]> rows = new ArrayList<>();
-        String[] headers = new String[colCount];
-        int[] maxWidths = new int[colCount];
 
-        // Read headers and initialize maxWidths.
-        for (int i = 0; i < colCount; i++) {
-            headers[i] = meta.getColumnLabel(i + 1);
-            maxWidths[i] = headers[i].length();
+        DefaultTableModel model = new DefaultTableModel() {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        for (int i = 1; i <= colCount; i++) {
+            model.addColumn(meta.getColumnLabel(i));
         }
-        rows.add(headers);
 
-        // Read data rows.
         while (rs.next()) {
-            String[] row = new String[colCount];
-            for (int i = 0; i < colCount; i++) {
-                Object obj = rs.getObject(i + 1);
-                row[i] = (obj == null ? "NULL" : obj.toString());
-                if (row[i].length() > maxWidths[i]) {
-                    maxWidths[i] = row[i].length();
-                }
+            Object[] rowData = new Object[colCount];
+            for (int i = 1; i <= colCount; i++) {
+                rowData[i - 1] = rs.getObject(i);
             }
-            rows.add(row);
+            model.addRow(rowData);
         }
-
-        // Build the table string.
-        StringBuilder sb = new StringBuilder();
-        // Header row
-        for (int i = 0; i < colCount; i++) {
-            sb.append(String.format("%-" + maxWidths[i] + "s", rows.get(0)[i]));
-            if (i < colCount - 1) sb.append(" | ");
-        }
-        sb.append("\n");
-
-        // Separator line
-        for (int i = 0; i < colCount; i++) {
-            sb.append("-".repeat(maxWidths[i]));
-            if (i < colCount - 1) sb.append("-+-");
-        }
-        sb.append("\n");
-
-        // Data rows
-        for (int r = 1; r < rows.size(); r++) {
-            String[] row = rows.get(r);
-            for (int i = 0; i < colCount; i++) {
-                sb.append(String.format("%-" + maxWidths[i] + "s", row[i]));
-                if (i < colCount - 1) sb.append(" | ");
-            }
-            sb.append("\n");
-        }
-
-        return sb.toString();
+        return model;
     }
 
     public static void main(String[] args) {
