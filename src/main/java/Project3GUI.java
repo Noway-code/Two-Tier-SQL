@@ -318,29 +318,29 @@ public class Project3GUI extends JFrame implements ActionListener {
             resultArea.setText("No active connection. Please connect to the database first.");
             return;
         }
-        try (Statement stmt = c.createStatement()) {
-            // Check if the SQL starts with "select" (case-insensitive)
+        try {
             if (sql.toLowerCase().startsWith("select")) {
-                try (ResultSet rs = stmt.executeQuery(sql)) {
+                try (PreparedStatement pstmt = c.prepareStatement(sql);
+                     ResultSet rs = pstmt.executeQuery()) {
                     String tableOutput = resultSetToTableString(rs);
                     resultArea.setText(tableOutput);
                 }
             } else {
-                int updateCount = stmt.executeUpdate(sql);
-                String message = "Command executed successfully. Rows affected: " + updateCount;
-                // If this is an INSERT or UPDATE command, pop up a dialog with the success status.
-                String lowerSql = sql.toLowerCase();
-                if (lowerSql.startsWith("insert")) {
-                    JOptionPane.showMessageDialog(this, message, "Insert Success", JOptionPane.INFORMATION_MESSAGE);
-                } else if (lowerSql.startsWith("update")) {
-                    JOptionPane.showMessageDialog(this, message, "Update Success", JOptionPane.INFORMATION_MESSAGE);
+                try (PreparedStatement pstmt = c.prepareStatement(sql)) {
+                    int updateCount = pstmt.executeUpdate();
+                    String message = "Command executed successfully. Rows affected: " + updateCount;
+                    String lowerSql = sql.toLowerCase();
+                    if (lowerSql.startsWith("insert")) {
+                        JOptionPane.showMessageDialog(this, message, "Insert Success", JOptionPane.INFORMATION_MESSAGE);
+                    } else if (lowerSql.startsWith("update")) {
+                        JOptionPane.showMessageDialog(this, message, "Update Success", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                    resultArea.setText(message);
                 }
-                resultArea.setText(message);
             }
         } catch (SQLException ex) {
             String errMsg = "SQL Error: " + ex.getMessage();
             resultArea.setText(errMsg);
-            // Show a dialog with the error message
             JOptionPane.showMessageDialog(this, errMsg, "SQL Error", JOptionPane.ERROR_MESSAGE);
             System.err.println("SQL Error: " + ex.getMessage());
         }
