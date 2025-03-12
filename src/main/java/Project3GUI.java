@@ -133,8 +133,6 @@ public class Project3GUI extends JFrame implements ActionListener {
         // Create a panel for connection info (above results)
         JPanel connectionInfoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         connectionInfoLabel = new JLabel("Not connected");
-        connectionInfoLabel.setOpaque(true);
-        connectionInfoLabel.setBackground(Color.LIGHT_GRAY);
         connectionInfoPanel.add(new JLabel("Current Connection URL: "));
         connectionInfoPanel.add(connectionInfoLabel);
 
@@ -239,13 +237,10 @@ public class Project3GUI extends JFrame implements ActionListener {
             try (FileInputStream fis = new FileInputStream(dbPropFile)) {
                 dbProps.load(fis);
             } catch (IOException ex) {
-                resultArea.setText("Failed to load DB properties file: " + selectedDBProperties);
-                System.err.println("DB Properties load error: " + ex.getMessage());
                 updateConnectionStatus("Failed to load DB properties", Color.RED);
                 return;
             }
         } else {
-            resultArea.setText("DB properties file not found: " + selectedDBProperties);
             updateConnectionStatus("DB properties file not found", Color.RED);
             return;
         }
@@ -258,13 +253,10 @@ public class Project3GUI extends JFrame implements ActionListener {
             try (FileInputStream fis = new FileInputStream(userPropFile)) {
                 userProps.load(fis);
             } catch (IOException ex) {
-                resultArea.setText("Failed to load user properties file: " + selectedUserProperties);
-                System.err.println("User Properties load error: " + ex.getMessage());
                 updateConnectionStatus("Failed to load user properties", Color.RED);
                 return;
             }
         } else {
-            resultArea.setText("User properties file not found: " + selectedUserProperties);
             updateConnectionStatus("User properties file not found", Color.RED);
             return;
         }
@@ -281,7 +273,6 @@ public class Project3GUI extends JFrame implements ActionListener {
 
         // Verify credentials: the GUI input must match the properties file exactly.
         if (!guiUsername.equals(propUsername) || !guiPassword.equals(propPassword)) {
-            resultArea.setText("Credential mismatch.\nEntered credentials do not match those in " + selectedUserProperties);
             updateConnectionStatus("Credential mismatch", Color.RED);
             return;
         }
@@ -289,23 +280,15 @@ public class Project3GUI extends JFrame implements ActionListener {
         try {
             Class.forName(driver);
             if (c != null && !c.isClosed()) {
-                resultArea.append("\nAlready connected.");
                 updateConnectionStatus("Already connected", Color.ORANGE);
                 return;
             }
             c = DriverManager.getConnection(urlFromProps, propUsername, propPassword);
-            resultArea.setText("Connected as " + propUsername
-                    + "\nUsing DB properties file: " + selectedDBProperties
-                    + "\nUsing User properties file: " + selectedUserProperties);
             updateConnectionStatus("Connected: " + urlFromProps, Color.GREEN);
             System.out.println("Connected as " + propUsername + " to " + urlFromProps + "\n");
         } catch (ClassNotFoundException e) {
-            System.err.println("JDBC Driver not found: " + e.getMessage());
-            resultArea.setText("JDBC Driver not found.");
             updateConnectionStatus("JDBC Driver not found", Color.RED);
         } catch (SQLException e) {
-            System.err.println("SQL Error: " + e.getMessage());
-            resultArea.setText("SQL Error: " + e.getMessage());
             updateConnectionStatus("Connection failed", Color.RED);
         }
     }
@@ -314,26 +297,22 @@ public class Project3GUI extends JFrame implements ActionListener {
         try {
             if (c != null && !c.isClosed()) {
                 c.close();
-                resultArea.setText("Disconnected from database.");
-                c = null;
                 updateConnectionStatus("Not connected", Color.LIGHT_GRAY);
-            } else {
-                resultArea.setText("No active connection to disconnect.");
+                c = null;
             }
         } catch (SQLException e) {
-            System.err.println("SQL Error: " + e.getMessage());
-            resultArea.setText("SQL Error: " + e.getMessage());
+            updateConnectionStatus("Failed to disconnect", Color.RED);
         }
     }
 
     public void executeSQLCommand() {
         String sql = sqlCommandArea.getText().trim();
         if (sql.isEmpty()) {
-            resultArea.setText("Please enter an SQL command.");
+            JOptionPane.showMessageDialog(this, "Please enter an SQL command.", "Info", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
         if (c == null) {
-            resultArea.setText("No active connection. Please connect to the database first.");
+            JOptionPane.showMessageDialog(this, "No active connection. Please connect to the database first.", "Info", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
         // Use a PreparedStatement for all commands.
@@ -353,14 +332,15 @@ public class Project3GUI extends JFrame implements ActionListener {
                         JOptionPane.showMessageDialog(this, message, "Insert Success", JOptionPane.INFORMATION_MESSAGE);
                     } else if (lowerSql.startsWith("update")) {
                         JOptionPane.showMessageDialog(this, message, "Update Success", JOptionPane.INFORMATION_MESSAGE);
+                    } else {
+                        JOptionPane.showMessageDialog(this, message, "Success", JOptionPane.INFORMATION_MESSAGE);
                     }
-                    resultArea.setText(message);
+                    // Clear the result area since it's for SELECT output only.
+                    resultArea.setText("");
                 }
             }
         } catch (SQLException ex) {
-            String errMsg = "SQL Error: " + ex.getMessage();
-            resultArea.setText(errMsg);
-            JOptionPane.showMessageDialog(this, errMsg, "SQL Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "SQL Error: " + ex.getMessage(), "SQL Error", JOptionPane.ERROR_MESSAGE);
             System.err.println("SQL Error: " + ex.getMessage());
         }
     }
