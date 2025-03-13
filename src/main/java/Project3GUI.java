@@ -1,3 +1,11 @@
+/*
+Name: Camilo Alvarez-Velez
+Course: CNT 4714 Spring 2025
+Assignment title: Project 3 – A Two-tier Client-Server Application
+Date: March 14, 2025
+Class: Project3GUI.java
+*/
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
@@ -208,14 +216,12 @@ public class Project3GUI extends JFrame implements ActionListener {
                 userPropertiesCombo.addItem("client1.properties");
                 userPropertiesCombo.addItem("client2.properties");
                 userPropertiesCombo.addItem("project3app.properties");
-                userPropertiesCombo.addItem("theaccountant.properties");
             }
         } else {
             userPropertiesCombo.addItem("root.properties");
             userPropertiesCombo.addItem("client1.properties");
             userPropertiesCombo.addItem("client2.properties");
             userPropertiesCombo.addItem("project3app.properties");
-            userPropertiesCombo.addItem("theaccountant.properties");
         }
     }
 
