@@ -6,6 +6,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 public class Project3GUI extends JFrame implements ActionListener {
@@ -22,7 +24,7 @@ public class Project3GUI extends JFrame implements ActionListener {
     private final JButton executeButton;
     private final JButton clearButton;
 
-    // Results Panel components (non-editable JTable)
+    // Results Panel components (spreadsheet-style JTable)
     private final JTable resultTable;
     private final JScrollPane resultScrollPane;
     private final JButton exitButton; // Exit button
@@ -33,8 +35,11 @@ public class Project3GUI extends JFrame implements ActionListener {
     // Default values in case properties files do not override them
     String defaultUrl = "jdbc:mysql://localhost:3306/project3";
 
-    // JDBC connection
+    // JDBC connection for main database
     public Connection c;
+
+    // Store the current logged-in user (from the properties file) for logging operations
+    private String currentLoggedInUser;
 
     public Project3GUI() {
         setTitle("Project 3 - Client Application");
@@ -123,7 +128,8 @@ public class Project3GUI extends JFrame implements ActionListener {
         // Build Results Panel with Exit Button (in the south)
         JPanel resultsContainer = new JPanel(new BorderLayout());
         resultsContainer.setBorder(BorderFactory.createTitledBorder("SQL Result"));
-        // Create a non-editable JTable by overriding isCellEditable
+
+        // Create a non-editable JTable for spreadsheet-style display
         resultTable = new JTable(new DefaultTableModel()) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -222,8 +228,7 @@ public class Project3GUI extends JFrame implements ActionListener {
             case "Execute" -> executeSQLCommand();
             case "Clear" -> {
                 sqlCommandArea.setText("");
-                // For a SELECT query, clear the table model.
-                resultTable.setModel(new DefaultTableModel());
+                ((DefaultTableModel)resultTable.getModel()).setRowCount(0);
             }
             case "Exit" -> System.exit(0);
         }
@@ -289,6 +294,7 @@ public class Project3GUI extends JFrame implements ActionListener {
                 return;
             }
             c = DriverManager.getConnection(urlFromProps, propUsername, propPassword);
+            currentLoggedInUser = propUsername; // store the logged in user for logging operations
             updateConnectionStatus("Connected: " + urlFromProps, Color.GREEN);
             System.out.println("Connected as " + propUsername + " to " + urlFromProps + "\n");
         } catch (ClassNotFoundException e) {
@@ -326,6 +332,10 @@ public class Project3GUI extends JFrame implements ActionListener {
                      ResultSet rs = pstmt.executeQuery()) {
                     DefaultTableModel model = buildTableModel(rs);
                     resultTable.setModel(model);
+                    // Log query operation if not executed by accountant
+                    if (!currentLoggedInUser.equalsIgnoreCase("theaccountant")) {
+                        logOperation(currentLoggedInUser, "query");
+                    }
                 }
             } else {
                 try (PreparedStatement pstmt = c.prepareStatement(sql)) {
@@ -334,12 +344,16 @@ public class Project3GUI extends JFrame implements ActionListener {
                     String lowerSql = sql.toLowerCase();
                     if (lowerSql.startsWith("insert")) {
                         JOptionPane.showMessageDialog(this, message, "Insert Success", JOptionPane.INFORMATION_MESSAGE);
-                    } else if (lowerSql.startsWith("update")) {
+                    } else if (lowerSql.startsWith("update") || lowerSql.startsWith("delete")) {
                         JOptionPane.showMessageDialog(this, message, "Update Success", JOptionPane.INFORMATION_MESSAGE);
                     } else {
                         JOptionPane.showMessageDialog(this, message, "Success", JOptionPane.INFORMATION_MESSAGE);
                     }
                     resultTable.setModel(new DefaultTableModel());
+                    // Log update operation if not executed by accountant
+                    if (!currentLoggedInUser.equalsIgnoreCase("theaccountant")) {
+                        logOperation(currentLoggedInUser, "update");
+                    }
                 }
             }
         } catch (SQLException ex) {
@@ -373,6 +387,63 @@ public class Project3GUI extends JFrame implements ActionListener {
             model.addRow(rowData);
         }
         return model;
+    }
+
+    /**
+     * Logs the operation to the operations log database.
+     * For SELECT queries, operationType should be "query".
+     * For non-select commands (insert, update, delete), operationType should be "update".
+     * Operations by "theaccountant" are not logged.
+     */
+    private void logOperation(String loginUsername, String operationType) {
+        // Load operations log properties from "operationslog.properties" in config/db
+        Properties opProps = new Properties();
+        File opPropFile = new File("config/db", "operationslog.properties");
+        if (!opPropFile.exists()) {
+            System.err.println("Operations log properties file not found.");
+            return;
+        }
+        try (FileInputStream fis = new FileInputStream(opPropFile)) {
+            opProps.load(fis);
+        } catch (IOException ex) {
+            System.err.println("Failed to load operations log properties: " + ex.getMessage());
+            return;
+        }
+
+        String driver = opProps.getProperty("driver", "com.mysql.cj.jdbc.Driver");
+        String url = opProps.getProperty("url", "jdbc:mysql://localhost:3306/operationslog");
+        String opUsername = opProps.getProperty("username", "project3app");
+        String opPassword = opProps.getProperty("password", "project3app");
+
+        try {
+            Class.forName(driver);
+            try (Connection opConn = DriverManager.getConnection(url, opUsername, opPassword)) {
+                String sql = null;
+                if (operationType.equalsIgnoreCase("query")) {
+                    sql = "UPDATE operationscount SET num_queries = num_queries + 1 WHERE login_username = ?";
+                } else if (operationType.equalsIgnoreCase("update")) {
+                    sql = "UPDATE operationscount SET num_updates = num_updates + 1 WHERE login_username = ?";
+                }
+                if (sql != null) {
+                    try (PreparedStatement pstmt = opConn.prepareStatement(sql)) {
+                        pstmt.setString(1, loginUsername);
+                        int rows = pstmt.executeUpdate();
+                        if (rows == 0) {
+                            // If no row was updated, assume no record exists; insert a new record.
+                            String insertSql = "INSERT INTO operationscount (login_username, num_queries, num_updates) VALUES (?, ?, ?)";
+                            try (PreparedStatement ipstmt = opConn.prepareStatement(insertSql)) {
+                                ipstmt.setString(1, loginUsername);
+                                ipstmt.setInt(2, operationType.equalsIgnoreCase("query") ? 1 : 0);
+                                ipstmt.setInt(3, operationType.equalsIgnoreCase("update") ? 1 : 0);
+                                ipstmt.executeUpdate();
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            System.err.println("Error logging operation: " + ex.getMessage());
+        }
     }
 
     public static void main(String[] args) {
