@@ -35,7 +35,8 @@ public class AccountantGUI extends JFrame implements ActionListener {
     private final String accountantPropertiesFile = "config/ops/theaccountant.properties";
 
     public AccountantGUI() {
-        setTitle("Accountant Application - Operations Log Viewer");
+        // Updated window title
+        setTitle("Project 3 - Accountant Client");
         setSize(1000, 750);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -49,7 +50,7 @@ public class AccountantGUI extends JFrame implements ActionListener {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
 
-        // Row 1: Credentials (the accountant properties are fixed)
+        // Row 1: Credentials
         gbc.gridx = 0;
         gbc.gridy = 0;
         connectionPanel.add(new JLabel("Username:"), gbc);
@@ -153,7 +154,7 @@ public class AccountantGUI extends JFrame implements ActionListener {
             case "Execute" -> executeSQLCommand();
             case "Clear" -> {
                 sqlCommandArea.setText("");
-                ((DefaultTableModel)resultTable.getModel()).setRowCount(0);
+                ((DefaultTableModel) resultTable.getModel()).setRowCount(0);
             }
             case "Exit" -> System.exit(0);
         }

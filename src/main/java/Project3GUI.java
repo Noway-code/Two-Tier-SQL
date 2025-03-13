@@ -1,11 +1,3 @@
-/*
-Name: Camilo Alvarez-Velez
-Course: CNT 4714 Spring 2025
-Assignment title: Project 3 – A Two-tier Client-Server Application
-Date: March 14, 2025
-Class: Project3GUI.java
-*/
-
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
@@ -43,14 +35,15 @@ public class Project3GUI extends JFrame implements ActionListener {
     // Default values in case properties files do not override them
     String defaultUrl = "jdbc:mysql://localhost:3306/project3";
 
-    // JDBC connection for main database
+    // JDBC connection
     public Connection c;
 
     // Store the current logged-in user (from the properties file) for logging operations
     private String currentLoggedInUser;
 
     public Project3GUI() {
-        setTitle("Project 3 - Client Application");
+        // Updated window title
+        setTitle("Project 3 - Two-Tier Client Application");
         setSize(1000, 750);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -136,7 +129,6 @@ public class Project3GUI extends JFrame implements ActionListener {
         // Build Results Panel with Exit Button (in the south)
         JPanel resultsContainer = new JPanel(new BorderLayout());
         resultsContainer.setBorder(BorderFactory.createTitledBorder("SQL Result"));
-
         // Create a non-editable JTable for spreadsheet-style display
         resultTable = new JTable(new DefaultTableModel()) {
             @Override
@@ -234,7 +226,7 @@ public class Project3GUI extends JFrame implements ActionListener {
             case "Execute" -> executeSQLCommand();
             case "Clear" -> {
                 sqlCommandArea.setText("");
-                ((DefaultTableModel)resultTable.getModel()).setRowCount(0);
+                ((DefaultTableModel) resultTable.getModel()).setRowCount(0);
             }
             case "Exit" -> System.exit(0);
         }
@@ -300,7 +292,7 @@ public class Project3GUI extends JFrame implements ActionListener {
                 return;
             }
             c = DriverManager.getConnection(urlFromProps, propUsername, propPassword);
-            currentLoggedInUser = propUsername; // store the logged in user for logging operations
+            currentLoggedInUser = propUsername;
             updateConnectionStatus("Connected: " + urlFromProps, Color.GREEN);
             System.out.println("Connected as " + propUsername + " to " + urlFromProps + "\n");
         } catch (ClassNotFoundException e) {
@@ -338,10 +330,6 @@ public class Project3GUI extends JFrame implements ActionListener {
                      ResultSet rs = pstmt.executeQuery()) {
                     DefaultTableModel model = buildTableModel(rs);
                     resultTable.setModel(model);
-                    // Log query operation if not executed by accountant
-                    if (!currentLoggedInUser.equalsIgnoreCase("theaccountant")) {
-                        logOperation(currentLoggedInUser, "query");
-                    }
                 }
             } else {
                 try (PreparedStatement pstmt = c.prepareStatement(sql)) {
@@ -435,7 +423,6 @@ public class Project3GUI extends JFrame implements ActionListener {
                         pstmt.setString(1, loginUsername);
                         int rows = pstmt.executeUpdate();
                         if (rows == 0) {
-                            // If no row was updated, assume no record exists; insert a new record.
                             String insertSql = "INSERT INTO operationscount (login_username, num_queries, num_updates) VALUES (?, ?, ?)";
                             try (PreparedStatement ipstmt = opConn.prepareStatement(insertSql)) {
                                 ipstmt.setString(1, loginUsername);
