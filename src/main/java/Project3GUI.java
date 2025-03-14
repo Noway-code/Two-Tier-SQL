@@ -400,9 +400,14 @@ public class Project3GUI extends JFrame implements ActionListener {
      * Operations by "theaccountant" are not logged.
      */
     private void logOperation(String loginUsername, String operationType) {
-        // Load operations log properties from "operationslog.properties" in config/db
+        // Append "@localhost" if it's not already included
+        if (!loginUsername.contains("@")) {
+            loginUsername = loginUsername + "@localhost";
+        }
+
+        // Load operations log properties from "operationslog.properties" in config/ops
         Properties opProps = new Properties();
-        File opPropFile = new File("config/db", "operationslog.properties");
+        File opPropFile = new File("config/ops", "operationslog.properties");
         if (!opPropFile.exists()) {
             System.err.println("Operations log properties file not found.");
             return;
