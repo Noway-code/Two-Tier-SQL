@@ -1,3 +1,11 @@
+/*
+ Name: Camilo Alvarez-Velez
+ Course: CNT 4714 Spring 2025
+ Assignment title: Project 3 – A Two-tier Client-Server Application
+ Date: March 14, 2025
+ Class: Project3GUI.java
+*/
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
@@ -6,8 +14,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 
 public class Project3GUI extends JFrame implements ActionListener {
@@ -330,6 +336,10 @@ public class Project3GUI extends JFrame implements ActionListener {
                      ResultSet rs = pstmt.executeQuery()) {
                     DefaultTableModel model = buildTableModel(rs);
                     resultTable.setModel(model);
+                    // Log SELECT queries (unless executed by the accountant)
+                    if (!currentLoggedInUser.equalsIgnoreCase("theaccountant")) {
+                        logOperation(currentLoggedInUser, "query");
+                    }
                 }
             } else {
                 try (PreparedStatement pstmt = c.prepareStatement(sql)) {

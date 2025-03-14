@@ -1,3 +1,11 @@
+/*
+ Name: Camilo Alvarez-Velez
+ Course: CNT 4714 Spring 2025
+ Assignment title: Project 3 – A Specialized Accountant Application
+ Date: March 14, 2025
+ Class: AccountantGUI.java
+*/
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
